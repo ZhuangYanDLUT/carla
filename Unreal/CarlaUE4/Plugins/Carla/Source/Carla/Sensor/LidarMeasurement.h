@@ -1,5 +1,4 @@
-// Copyright (c) 2017 Computer Vision Center (CVC) at the Universitat Autonoma
-// de Barcelona (UAB).
+// Copyright (c) 2019, Intelligent Robotics Lab, DLUT.
 //
 // This work is licensed under the terms of the MIT license.
 // For a copy, see <https://opensource.org/licenses/MIT>.
@@ -26,9 +25,9 @@
 /// The points are stored in an array of floats
 ///
 ///    {
-///      X0, Y0, Z0,
+///      X0, Y0, Z0, L0
 ///      ...
-///      Xn, Yn, Zn,
+///      Xn, Yn, Zn, Ln
 ///    }
 ///
 class FLidarMeasurement {
@@ -74,10 +73,11 @@ public:
   void Reset(uint32 TotalPointCount)
   {
     std::memset(Header.GetData() + 4u, 0, sizeof(uint32) * GetChannelCount());
-    Points.Reset(3u * TotalPointCount);
+    
+    Points.Reset(4u * TotalPointCount);
   }
 
-  void WritePoint(uint32 Channel, const FVector &Point)
+  void WritePoint(uint32 Channel, const FVector4 &Point)
   {
     check(Header[3] > Channel);
     Header[4u + Channel] += 1u;
@@ -85,6 +85,8 @@ public:
     Points.Emplace(TO_METERS * Point.X);
     Points.Emplace(TO_METERS * Point.Y);
     Points.Emplace(TO_METERS * Point.Z);
+
+    Points.Emplace(Point.W);
   }
 
   FSensorDataView GetView() const

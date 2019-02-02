@@ -1,96 +1,51 @@
-CARLA Simulator
+Annotated LiDAR Point Clouds Extraction From CARLA Simulator
 ===============
 
-[![Build Status](https://travis-ci.org/carla-simulator/carla.svg?branch=master)](https://travis-ci.org/carla-simulator/carla)
-[![Documentation](https://readthedocs.org/projects/carla/badge/?version=latest)](http://carla.readthedocs.io)
-[![Waffle.io](https://badge.waffle.io/carla-simulator/carla.svg?columns=Next,In%20Progress,Review)](https://waffle.io/carla-simulator/carla)
+This modified version of CARLA simulator provides an open-source method to 
+extract LiDAR point clouds with point-level ground truth labels for semantic 
+segmentation. The modified lidar sensor inherits the highly configurable 
+parameters, such as sensor location, vertical/horizontal field of view, 
+vertical/horizontal resolutions and rotation frequency. So, this method can 
+be used to simulate various real devices and settings, including vertically 
+side-faced 2D lasers used in [Oakland dataset][Oaklandlink], 3D real-time 
+sensors like Velodyne HDL-64 used in [KITTI dataset][KITTIlink], and 3D 
+static laser scanners used in [Semantic3D.net dataset][Semantic3Dlink]. 
 
-CARLA is an open-source simulator for autonomous driving research. CARLA has
-been developed from the ground up to support development, training, and
-validation of autonomous urban driving systems. In addition to open-source code
-and protocols, CARLA provides open digital assets (urban layouts, buildings,
-vehicles) that were created for this purpose and can be used freely. The
-simulation platform supports flexible specification of sensor suites and
-environmental conditions.
+[Oaklandlink]: http://www.cs.cmu.edu/~vmr/datasets/oakland_3d/cvpr09/doc/
+[KITTIlink]: http://www.cvlibs.net/datasets/kitti/index.php
+[Semantic3Dlink]: http://semantic3d.net/
 
-[![CARLA Video](Docs/img/video_thumbnail.png)](https://youtu.be/Hp8Dz-Zek2E)
+We provide Python APIs to automatically extract annotated point clouds. A 
+demo is provide in ![data_collection.py](PythonClient/data_collection.py). 
+Users can specify sensor parameters, environment parameter like number of 
+vehicles and pedestrians, and maximum frames of the simulated data. The 
+labels are: 0-None, 1-Buildings, 2-Fences, 3-Other, 4-Pedestrians, 5-Poles, 
+6-RoadLines, 7-Roads, 8-Sidewalks, 9-Vegetation, 10-Vehicles, 11-Walls, 
+12-TrafficSigns. Examples of the simulated point clouds are shown as follows:
 
-[Get the latest release here.](https://github.com/carla-simulator/carla/releases/latest)
+![Simulated Data](Docs/img/example_of_synthetic_data.png)
 
-For instructions on how to use and compile CARLA, check out
-[CARLA Documentation](http://carla.readthedocs.io).
-
-If you want to benchmark your model in the same conditions as in our CoRL’17
-paper, check out
-[Benchmarking](http://carla.readthedocs.io/en/latest/benchmark_start/).
-
-News
+Usage
 ----
 
-- 05.04.2018 CARLA 0.8.1 released: [post](http://carla.org/2018/04/05/release-0.8.1/), [change log](https://github.com/carla-simulator/carla/blob/master/CHANGELOG.md#carla-081), [release](https://github.com/carla-simulator/carla/releases/tag/0.8.1).
-- 27.03.2018 CARLA 0.8.0 released: [post](http://carla.org/2018/03/27/release-0.8.0/), [change log](https://github.com/carla-simulator/carla/blob/master/CHANGELOG.md#carla-080), [release](https://github.com/carla-simulator/carla/releases/tag/0.8.0).
-- 25.01.2018 CARLA 0.7.1 released: [change log](https://github.com/carla-simulator/carla/blob/master/CHANGELOG.md#carla-071), [release](https://github.com/carla-simulator/carla/releases/tag/0.7.1).
-- 28.11.2017 CARLA 0.7.0 released: [change log](https://github.com/carla-simulator/carla/blob/master/CHANGELOG.md#carla-070), [release](https://github.com/carla-simulator/carla/releases/tag/0.7.0).
+Clone or download the project from our
+[GitHub repository](https://github.com/ZhuangYanDLUT/carla)
 
-Roadmap
--------
+    $ git clone https://github.com/ZhuangYanDLUT/carla.git
 
-We are continuously working on improving CARLA, and we appreciate contributions
-from the community. Our most immediate goals are:
+Switch to the `lidar_annotation` branch and build it following the 
+instructions at ![How to build on Linux](Docs/how_to_build_on_linux.md). 
+Then launch the editor and package the project to the default directory.
 
-- [ ] Releasing the methods evaluated in the CARLA paper
-- [x] Adding a Lidar sensor
-- [ ] Allowing for flexible and user-friendly import and editing of maps
-- [ ] Allowing the users to control non-player characters (and therefore set up user-specified scenarios)
+Start the server:
 
-Paper
------
+    $ cd ~/carla/Unreal/CarlaUE4/LinuxNoEditor
+    $ ./CarlaUE4.sh Town01 -windowed -ResX=1024 -ResY=768 -benchmark -fps=10 -carla-server
 
-If you use CARLA, please cite our CoRL’17 paper.
+Open a new terminal and start data collection:
 
-_CARLA: An Open Urban Driving Simulator_<br>Alexey Dosovitskiy, German Ros,
-Felipe Codevilla, Antonio Lopez, Vladlen Koltun; PMLR 78:1-16
-[[PDF](http://proceedings.mlr.press/v78/dosovitskiy17a/dosovitskiy17a.pdf)]
-
-
-```
-@inproceedings{Dosovitskiy17,
-  title = {{CARLA}: {An} Open Urban Driving Simulator},
-  author = {Alexey Dosovitskiy and German Ros and Felipe Codevilla and Antonio Lopez and Vladlen Koltun},
-  booktitle = {Proceedings of the 1st Annual Conference on Robot Learning},
-  pages = {1--16},
-  year = {2017}
-}
-```
-
-Building CARLA
---------------
-
-Use `git clone` or download the project from this page. Note that the master
-branch contains the latest fixes and features, for the latest stable code may be
-best to switch to the `stable` branch.
-
-Then follow the instruction at [How to build on Linux][buildlink].
-
-Unfortunately we don't have yet official instructions to build on other
-platforms, please check the progress for [Windows][issue21] and [Mac][issue150].
-
-[buildlink]: http://carla.readthedocs.io/en/latest/how_to_build_on_linux
-[issue21]: https://github.com/carla-simulator/carla/issues/21
-[issue150]: https://github.com/carla-simulator/carla/issues/150
-
-Contributing
-------------
-
-Please take a look at our [Contribution guidelines][contriblink].
-
-[contriblink]: http://carla.readthedocs.io/en/latest/CONTRIBUTING
-
-F.A.Q.
-------
-
-If you run into problems, check our
-[FAQ](http://carla.readthedocs.io/en/latest/faq/).
+    $ cd ~/carla/PythonClient
+    $ python data_collection.py
 
 License
 -------

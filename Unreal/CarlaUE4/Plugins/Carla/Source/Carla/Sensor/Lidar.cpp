@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// Copyright (c) 2019, Intelligent Robotics Lab, DLUT.
 
 #include "Carla.h"
 #include "Lidar.h"
@@ -7,6 +7,7 @@
 #include "Engine/CollisionProfile.h"
 #include "Runtime/Engine/Classes/Kismet/KismetMathLibrary.h"
 #include "StaticMeshResources.h"
+#include "Game/Tagger.h"
 
 ALidar::ALidar(const FObjectInitializer& ObjectInitializer)
   : Super(ObjectInitializer)
@@ -84,7 +85,7 @@ void ALidar::ReadPoints(const float DeltaTime)
   {
     for (auto i = 0u; i < PointsToScanWithOneLaser; ++i)
     {
-      FVector Point;
+      FVector4 Point;
       const float Angle = CurrentHorizontalAngle + AngleDistanceOfLaserMeasure * i;
       if (ShootLaser(Channel, Angle, Point))
       {
@@ -98,7 +99,7 @@ void ALidar::ReadPoints(const float DeltaTime)
   LidarMeasurement.SetHorizontalAngle(HorizontalAngle);
 }
 
-bool ALidar::ShootLaser(const uint32 Channel, const float HorizontalAngle, FVector &XYZ) const
+bool ALidar::ShootLaser(const uint32 Channel, const float HorizontalAngle, FVector4 &XYZL) const
 {
   const float VerticalAngle = LaserAngles[Channel];
 
@@ -141,12 +142,32 @@ bool ALidar::ShootLaser(const uint32 Channel, const float HorizontalAngle, FVect
       );
     }
 
-    XYZ = LidarBodyLoc - HitInfo.ImpactPoint;
+    FVector XYZ = LidarBodyLoc - HitInfo.ImpactPoint;
     XYZ = UKismetMathLibrary::RotateAngleAxis(
       XYZ,
       - LidarBodyRot.Yaw + 90,
       FVector(0, 0, 1)
     );
+
+    // use the tag of the actor or its components as the ground truth annotation.
+    UPrimitiveComponent *component_hit = HitInfo.GetComponent();
+    ECityObjectLabel tag = ATagger::GetTagOfTaggedComponent(*component_hit);
+    if (tag == ECityObjectLabel::None)
+    {
+      AActor *actor = HitInfo.GetActor();
+      TArray<ECityObjectLabel> tags;
+      ATagger::GetTagsOfTaggedActor(*actor, tags);
+      for (auto t : tags)
+      {
+        if (t != ECityObjectLabel::None) 
+        {
+          tag = t;
+          break;
+        }
+      }
+    }
+
+    XYZL.Set(XYZ.X, XYZ.Y, XYZ.Z, CastEnum(tag));
 
     return true;
   } else {

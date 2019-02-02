@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// Copyright (c) 2019, Intelligent Robotics Lab, DLUT.
 
 #pragma once
 
@@ -34,7 +34,7 @@ private:
   void ReadPoints(float DeltaTime);
 
   /// Shoot a laser ray-trace, return whether the laser hit something.
-  bool ShootLaser(uint32 Channel, float HorizontalAngle, FVector &Point) const;
+  bool ShootLaser(uint32 Channel, float HorizontalAngle, FVector4 &Point) const;
 
   UPROPERTY(Category = "Lidar", VisibleAnywhere)
   const ULidarDescription *Description;

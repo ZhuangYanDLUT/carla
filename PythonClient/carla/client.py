@@ -1,5 +1,4 @@
-# Copyright (c) 2017 Computer Vision Center (CVC) at the Universitat Autonoma de
-# Barcelona (UAB).
+# Copyright (c) 2019, Intelligent Robotics Lab, DLUT.
 #
 # This work is licensed under the terms of the MIT license.
 # For a copy, see <https://opensource.org/licenses/MIT>.
@@ -206,13 +205,17 @@ def _make_sensor_parsers(sensors):
         points = numpy.frombuffer(
             data[header_size+channels*4:],
             dtype=numpy.dtype('f4'))
-        points = numpy.reshape(points, (int(points.shape[0]/3), 3))
+
+        points = numpy.reshape(points, (int(points.shape[0]/4), 4))
+        labels = points[:, 3].reshape(-1, 1)
+        points = points[:, :3]
+
         return sensor.LidarMeasurement(
             frame_number,
             horizontal_angle,
             channels,
             point_count_by_channel,
-            sensor.PointCloud(frame_number, points))
+            sensor.PointCloud(frame_number, points, labels=labels))
 
     class SensorDefinition(object):
         def __init__(self, s):

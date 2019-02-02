@@ -1,6 +1,4 @@
-# Copyright (c) 2017 Computer Vision Center (CVC) at the Universitat Autonoma de
-# Barcelona (UAB).
-#
+# Copyright (c) 2019, Intelligent Robotics Lab, DLUT.
 # This work is licensed under the terms of the MIT license.
 # For a copy, see <https://opensource.org/licenses/MIT>.
 
@@ -28,8 +26,8 @@ Color = namedtuple('Color', 'r g b')
 Color.__new__.__defaults__ = (0, 0, 0)
 
 
-Point = namedtuple('Point', 'x y z color')
-Point.__new__.__defaults__ = (0.0, 0.0, 0.0, None)
+Point = namedtuple('Point', 'x y z label color')
+Point.__new__.__defaults__ = (0.0, 0.0, 0.0, 0.0, None)
 
 
 def _append_extension(filename, ext):
@@ -198,9 +196,11 @@ class Image(SensorData):
 class PointCloud(SensorData):
     """A list of points."""
 
-    def __init__(self, frame_number, array, color_array=None):
+    def __init__(self, frame_number, array, labels, color_array=None):
         super(PointCloud, self).__init__(frame_number=frame_number)
         self._array = array
+        # add label attibutes
+        self._labels = labels
         self._color_array = color_array
         self._has_colors = color_array is not None
 
@@ -227,6 +227,19 @@ class PointCloud(SensorData):
         """
         return self._color_array
 
+    # add labels property
+    @property
+    def labels(self):
+        """The numpy array holding the labels corresponding to each point.
+        It is None if there are no labels.
+
+        labels format for n elements:
+        [ [label0],
+          ...,
+          [labeln] ]
+        """
+        return self._labels
+
     def has_colors(self):
         """Return whether the points have color."""
         return self._has_colors
@@ -236,36 +249,74 @@ class PointCloud(SensorData):
         self._array = transformation.transform_points(self._array)
 
     def save_to_disk(self, filename):
-        """Save this point-cloud to disk as PLY format."""
-        filename = _append_extension(filename, '.ply')
+        """Save this point-cloud to disk as text format."""
+        filename = _append_extension(filename, '.txt')
 
-        def construct_ply_header():
-            """Generates a PLY header given a total number of 3D points and
-            coloring property if specified
-            """
-            points = len(self)  # Total point number
-            header = ['ply',
-                      'format ascii 1.0',
-                      'element vertex {}',
-                      'property float32 x',
-                      'property float32 y',
-                      'property float32 z',
-                      'property uchar diffuse_red',
-                      'property uchar diffuse_green',
-                      'property uchar diffuse_blue',
-                      'end_header']
-            if not self._has_colors:
-                return '\n'.join(header[0:6] + [header[-1]]).format(points)
-            return '\n'.join(header).format(points)
+        def point_transform(points, tx, ty, tz, rx=0, ry=0, rz=0):
+            # Input:
+            #   points: (N, 3)
+            #   rx/y/z: in radians
+            # Output:
+            #   points: (N, 3)
+            N = points.shape[0]
+            points = numpy.hstack([points, numpy.ones((N, 1))])
+
+            if rx != 0:
+                mat = numpy.zeros((4, 4))
+                mat[0, 0] = 1
+                mat[3, 3] = 1
+                mat[1, 1] = numpy.cos(rx)
+                mat[1, 2] = -numpy.sin(rx)
+                mat[2, 1] = numpy.sin(rx)
+                mat[2, 2] = numpy.cos(rx)
+                points = numpy.matmul(points, mat)
+
+            if ry != 0:
+                mat = numpy.zeros((4, 4))
+                mat[1, 1] = 1
+                mat[3, 3] = 1
+                mat[0, 0] = numpy.cos(ry)
+                mat[0, 2] = numpy.sin(ry)
+                mat[2, 0] = -numpy.sin(ry)
+                mat[2, 2] = numpy.cos(ry)
+                points = numpy.matmul(points, mat)
+
+            if rz != 0:
+                mat = numpy.zeros((4, 4))
+                mat[2, 2] = 1
+                mat[3, 3] = 1
+                mat[0, 0] = numpy.cos(rz)
+                mat[0, 1] = -numpy.sin(rz)
+                mat[1, 0] = numpy.sin(rz)
+                mat[1, 1] = numpy.cos(rz)
+                points = numpy.matmul(points, mat)
+
+            mat1 = numpy.eye(4)
+            mat1[3, 0:3] = tx, ty, tz
+            points = numpy.matmul(points, mat1)
+
+            return points[:, 0:3]
+
+        # Rotate the coordinate system to (x:forward, y:left, z:top).
+        # If the coordinate sysem does not matter, just annotated these two lines below.
+        self._array = point_transform(self._array, 0, 0, 0, numpy.pi, 0, 0)
+        self._array = point_transform(self._array, 0, 0, 0, 0, 0, numpy.pi/2)
+        
+        points_label = numpy.concatenate(
+                (self._array, self._labels), axis=1)
 
         if not self._has_colors:
-            ply = '\n'.join(['{:.2f} {:.2f} {:.2f}'.format(
-                *p) for p in self._array.tolist()])
+            ply = '\n'.join(['{:.2f} {:.2f} {:.2f} {:.0f}'.format(
+                *p) for p in points_label.tolist()])
+
+            out_data = points_label
         else:
             points_3d = numpy.concatenate(
-                (self._array, self._color_array), axis=1)
-            ply = '\n'.join(['{:.2f} {:.2f} {:.2f} {:.0f} {:.0f} {:.0f}'
+                (points_label, self._color_array), axis=1)
+            ply = '\n'.join(['{:.2f} {:.2f} {:.2f} {:.0f} {:.0f} {:.0f} {:.0f}'
                              .format(*p) for p in points_3d.tolist()])
+
+            out_data = points_3d
 
         # Create folder to save if does not exist.
         folder = os.path.dirname(filename)
@@ -273,8 +324,8 @@ class PointCloud(SensorData):
             os.makedirs(folder)
 
         # Open the file and save with the specific PLY format.
-        with open(filename, 'w+') as ply_file:
-            ply_file.write('\n'.join([construct_ply_header(), ply]))
+        with open(filename, 'w+') as out_file:
+            out_file.write(ply)
 
     def __len__(self):
         return len(self.array)
@@ -282,7 +333,8 @@ class PointCloud(SensorData):
     def __getitem__(self, key):
         color = None if self._color_array is None else Color(
             *self._color_array[key])
-        return Point(*self._array[key], color=color)
+
+        return Point(*self._array[key], label=self._labels[key], color=color)
 
     def __iter__(self):
         class PointIterator(object):
